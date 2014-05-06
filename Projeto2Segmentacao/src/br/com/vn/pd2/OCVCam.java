@@ -11,18 +11,27 @@ import org.opencv.core.Mat;
 import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
-import android.util.Log;
-
 public class OCVCam implements CvCameraViewListener2 {
 
-	private boolean useGray = false;
+	private Mat last;
+	private Tipo tipo = Tipo.SOBEL_GRAY;
 
-	public void setUseGray(boolean useGray) {
-		this.useGray = true;
-	}
-
-	public void setUseHHSV(boolean useHHSV) {
-		this.useGray = false;
+	private enum Tipo {
+		SOBEL_GRAY, SOBEL_GRAY_BINARY, SOBEL_H_HSV, SOBEL_H_HSV_BINARY;
+		public String toString() {
+			switch (this) {
+			case SOBEL_GRAY:
+				return "Sobel sobre escala de cinza";
+			case SOBEL_GRAY_BINARY:
+				return "Sobel sobre escala de cinza,  e depois Binarizada";
+			case SOBEL_H_HSV:
+				return "Sobel sobre H do HSV";
+			case SOBEL_H_HSV_BINARY:
+				return "Sobel sobre H do HSV, e depois Binarizada";
+			default:
+				return "";
+			}
+		};
 	}
 
 	// empty mask
@@ -80,9 +89,12 @@ public class OCVCam implements CvCameraViewListener2 {
 		Mat absGradY = new Mat();
 		Mat toUse = current.clone();
 
-		if (useGray) {
+		if (tipo.equals(Tipo.SOBEL_GRAY)) {
+
 			Imgproc.cvtColor(toUse, toUse, Imgproc.COLOR_RGBA2GRAY);
+
 		} else {
+
 			Imgproc.cvtColor(toUse, toUse, Imgproc.COLOR_RGBA2RGB);
 			Imgproc.cvtColor(toUse, toUse, Imgproc.COLOR_RGB2HSV);
 			List<Mat> canais = new ArrayList<>();
@@ -110,6 +122,12 @@ public class OCVCam implements CvCameraViewListener2 {
 
 		Core.addWeighted(absGradX, 0.5, absGradY, 0.5, 0, grad);
 
+		if (tipo.equals(Tipo.SOBEL_H_HSV_BINARY)
+				|| tipo.equals(Tipo.SOBEL_GRAY_BINARY)) {
+			Imgproc.threshold(grad, grad, 130, 255, Imgproc.THRESH_BINARY
+					| Imgproc.THRESH_OTSU);
+		}
+
 		releaseMat(current);
 		releaseMat(toUse);
 		releaseMat(gradX);
@@ -119,24 +137,24 @@ public class OCVCam implements CvCameraViewListener2 {
 
 		last = grad;
 
-		return grad;
+		return last;
 	}
 
-	Mat last;
+	public String touch() {
 
-	public void catchImg() {
-
-//		for (int i = 0; i < last.rows(); i++) {
-//			for (int j = 0; j < last.cols(); j++) {
-//				double[] cur = last.get(i, j);
-//				StringBuffer sb = new StringBuffer();
-//				for (int z = 0; z < cur.length; z++) {
-//					sb.append(cur[z] + " | ");
-//				}
-//				Log.d("matriz", sb.toString());
-//
-//			}
-//		}
+		tipo = Tipo.values()[(tipo.ordinal() + 1) % Tipo.values().length];
+		return tipo.toString();
+		// for (int i = 0; i < last.rows(); i++) {
+		// for (int j = 0; j < last.cols(); j++) {
+		// double[] cur = last.get(i, j);
+		// StringBuffer sb = new StringBuffer();
+		// for (int z = 0; z < cur.length; z++) {
+		// sb.append(cur[z] + " | ");
+		// }
+		// Log.d("matriz", sb.toString());
+		//
+		// }
+		// }
 
 	}
 

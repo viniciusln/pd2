@@ -22,12 +22,9 @@ public class MainActivity extends Activity implements OnClickListener {
 	private CameraBridgeViewBase mOpenCvCameraView;
 	private OCVCam ocvCam = new OCVCam();
 
-	private MenuItem mItemHHsv = null;
-	private MenuItem mItemGray = null;
-
 	@Override
 	public void onClick(View v) {
-		ocvCam.catchImg();
+		Toast.makeText(this, ocvCam.touch(), Toast.LENGTH_LONG).show();
 	}
 
 	private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
@@ -88,29 +85,12 @@ public class MainActivity extends Activity implements OnClickListener {
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		mItemHHsv = menu.add("H - HSV");
-		mItemGray = menu.add("Gray Scale");
 		return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-
-		if (item == mItemHHsv) {
-			ocvCam.setUseGray(false);
-			Toast.makeText(this, "H - HSV", Toast.LENGTH_LONG).show();
-		} else if (item == mItemGray) {
-			ocvCam.setUseGray(true);
-			Toast.makeText(this, "Gray", Toast.LENGTH_LONG).show();
-		}
-
 		return true;
-	}
-
-	public void onCameraViewStarted(int width, int height) {
-	}
-
-	public void onCameraViewStopped() {
 	}
 
 }
