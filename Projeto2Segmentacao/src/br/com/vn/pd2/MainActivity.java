@@ -17,6 +17,7 @@ import android.widget.Toast;
 
 import com.example.projeto2_segmentacao.R;
 
+//
 public class MainActivity extends Activity implements OnClickListener {
 
 	private CameraBridgeViewBase mOpenCvCameraView;
