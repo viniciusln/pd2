@@ -10,67 +10,39 @@ import org.opencv.android.Utils;
 import org.opencv.core.Core;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import android.app.Activity;
 import android.graphics.Bitmap;
+import android.graphics.Bitmap.Config;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
 import android.os.Bundle;
-import android.view.View;
 
 public class LeavesAct extends Activity {
 
 	private Bitmap src;
 
-	private Bitmap gray;
-	private Bitmap mask;
+	private Config config = Config.RGB_565;
 
-	private Bitmap resultSobel;
-	private Bitmap hMasked;
-	private Bitmap resultSobelGray;
-	private Bitmap grayMasked;
+	ImageGrid view;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
 		src = BitmapFactory.decodeResource(getResources(), R.drawable.l10);
-		gray = Bitmap.createBitmap(src.getWidth(), src.getHeight(),
-				src.getConfig());
-		mask = Bitmap.createBitmap(src.getWidth(), src.getHeight(),
-				src.getConfig());
 
-		resultSobel = Bitmap.createBitmap(src.getWidth(), src.getHeight(),
-				src.getConfig());
-		hMasked = Bitmap.createBitmap(src.getWidth(), src.getHeight(),
-				src.getConfig());
-		resultSobelGray = Bitmap.createBitmap(src.getWidth(), src.getHeight(),
-				src.getConfig());
-		grayMasked = Bitmap.createBitmap(src.getWidth(), src.getHeight(),
-				src.getConfig());
+		view = new ImageGrid(getApplicationContext(), 3);
+		view.addBitmap(src);
 
-		View view = new View(getApplicationContext()) {
-			@Override
-			protected void onDraw(Canvas canvas) {
-				super.onDraw(canvas);
-				int height = 0;
-				canvas.drawBitmap(src, 0, height, null);
-				// canvas.drawBitmap(gray, src.getWidth(), height, null);
-				canvas.drawBitmap(mask, src.getWidth(), height, null);
-
-				canvas.drawBitmap(hMasked, 0, height += mask.getHeight(), null);
-				canvas.drawBitmap(resultSobel, hMasked.getWidth(), height, null);
-				canvas.drawBitmap(grayMasked, 0,
-						height += resultSobel.getHeight(), null);
-				canvas.drawBitmap(resultSobelGray, resultSobelGray.getWidth(),
-						height, null);
-			}
-		};
 		setContentView(view);
 	}
 
 	private void onOCVLoad() {
+
+		view.addBitmap(src);
+
 		Mat grayMat = new Mat();
 		Mat srcMat = new Mat();
 		Utils.bitmapToMat(src, srcMat);
@@ -83,43 +55,60 @@ public class LeavesAct extends Activity {
 		// ---
 
 		Mat maskMat = grayMat.clone();
+
 		Imgproc.threshold(maskMat, maskMat, 100, 255, Imgproc.THRESH_OTSU);
 		Core.bitwise_not(maskMat, maskMat);
+		view.addBitmap(toBmp(maskMat));
 
 		// ---
-		Mat sobel = srcMat.clone();
+		Mat hsv = srcMat.clone();
 
-		Imgproc.cvtColor(sobel, sobel, Imgproc.COLOR_RGBA2RGB);
-		Imgproc.cvtColor(sobel, sobel, Imgproc.COLOR_RGB2HSV);
+		Imgproc.cvtColor(hsv, hsv, Imgproc.COLOR_RGBA2RGB);
+		Imgproc.cvtColor(hsv, hsv, Imgproc.COLOR_RGB2HSV);
 		List<Mat> canais = new ArrayList<>();
-		Core.split(sobel, canais);
+		Core.split(hsv, canais);
 
 		Mat canalH = canais.get(0);
 		Mat hMaskedMat = new Mat();
 		Core.bitwise_and(maskMat, canalH, hMaskedMat);
 
-		Mat resultSobelMat = aplicarSobel(hMaskedMat);
+		view.addBitmap(toBmp(hMaskedMat));
+		releaseMat(hsv, canais.get(1), canais.get(2));
 
-		// Mat resultSobelMatMasked = new Mat();
+		// ---
+
+		Mat resultSobelMat = aplicarSobel(hMaskedMat);
+		view.addBitmap(toBmp(resultSobelMat));
+		releaseMat(resultSobelMat);
 
 		// -----------
 
-		Mat sobelGray = srcMat.clone();
+		Mat toCanny = canalH.clone();
+		Imgproc.blur(toCanny, toCanny, new Size(3, 3));
+		Imgproc.Canny(toCanny, toCanny, 5, 15);
+		Core.bitwise_and(maskMat, toCanny, toCanny);
+		view.addBitmap(toBmp(toCanny));
+		releaseMat(hMaskedMat, toCanny, canalH);
 
-		Imgproc.cvtColor(sobelGray, sobelGray, Imgproc.COLOR_RGBA2GRAY);
-		Mat grayMaskedMat = new Mat();
-		Core.bitwise_and(maskMat, sobelGray, grayMaskedMat);
+		releaseMat(srcMat, grayMat);
 
-		Mat resultSobelMatGray = aplicarSobel(grayMaskedMat);
+	}
 
-		// //
+	private Bitmap toBmp(Mat mat) {
+		Bitmap retorno = Bitmap.createBitmap(mat.cols(), mat.rows(), config);
+		Utils.matToBitmap(mat, retorno);
+		return retorno;
+	}
 
-		Utils.matToBitmap(resultSobelMatGray, resultSobelGray);
-		Utils.matToBitmap(grayMaskedMat, this.grayMasked);
-		Utils.matToBitmap(hMaskedMat, hMasked);
-		Utils.matToBitmap(resultSobelMat, resultSobel);
-		Utils.matToBitmap(grayMat, gray);
-		Utils.matToBitmap(maskMat, mask);
+	private void releaseMat(Mat mat) {
+		if (mat != null)
+			mat.release();
+	}
+
+	private void releaseMat(Mat... mats) {
+		for (Mat m : mats) {
+			releaseMat(m);
+		}
 	}
 
 	private Mat aplicarSobel(Mat src) {
@@ -139,10 +128,7 @@ public class LeavesAct extends Activity {
 		Mat resultSobelMat = new Mat();
 		Core.addWeighted(absGradX, 0.5, absGradY, 0.5, 0, resultSobelMat);
 
-		gradX.release();
-		absGradX.release();
-		gradY.release();
-		absGradY.release();
+		releaseMat(gradY, gradY, absGradX, absGradY);
 
 		return resultSobelMat;
 	}
@@ -166,6 +152,7 @@ public class LeavesAct extends Activity {
 
 	@Override
 	public void onResume() {
+		view.clear();
 		super.onResume();
 		OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_2_4_3, this,
 				mLoaderCallback);
