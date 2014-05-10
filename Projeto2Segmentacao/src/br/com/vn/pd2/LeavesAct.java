@@ -31,9 +31,9 @@ public class LeavesAct extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
-		src = BitmapFactory.decodeResource(getResources(), R.drawable.l10);
+		src = BitmapFactory.decodeResource(getResources(), R.drawable.l12);
 
-		view = new ImageGrid(getApplicationContext(), 3);
+		view = new ImageGrid(getApplicationContext(), 2);
 		view.addBitmap(src);
 
 		setContentView(view);
@@ -56,6 +56,7 @@ public class LeavesAct extends Activity {
 
 		Mat maskMat = grayMat.clone();
 
+		Imgproc.blur(maskMat, maskMat, new Size(5, 5));
 		Imgproc.threshold(maskMat, maskMat, 100, 255, Imgproc.THRESH_OTSU);
 		Core.bitwise_not(maskMat, maskMat);
 		view.addBitmap(toBmp(maskMat));
@@ -69,27 +70,65 @@ public class LeavesAct extends Activity {
 		Core.split(hsv, canais);
 
 		Mat canalH = canais.get(0);
+		view.addBitmap(toBmp(canalH));
+
+		// --
+
 		Mat hMaskedMat = new Mat();
 		Core.bitwise_and(maskMat, canalH, hMaskedMat);
 
 		view.addBitmap(toBmp(hMaskedMat));
-		releaseMat(hsv, canais.get(1), canais.get(2));
 
 		// ---
 
-		Mat resultSobelMat = aplicarSobel(hMaskedMat);
-		view.addBitmap(toBmp(resultSobelMat));
-		releaseMat(resultSobelMat);
+		Mat resultSobelMat3 = aplicarSobel(hMaskedMat, 3);
+		view.addBitmap(toBmp(resultSobelMat3));
 
-		// -----------
+		// ---
 
-		Mat toCanny = canalH.clone();
+		Mat resultSobelMat5 = aplicarSobel(hMaskedMat, 5);
+//		view.addBitmap(toBmp(resultSobelMat5));
+
+		// ---
+
+		Mat resultSobelMat7 = aplicarSobel(hMaskedMat, 7);
+//		view.addBitmap(toBmp(resultSobelMat7));
+
+		// ---
+
+		Mat resultSobelMat_1 = aplicarSobel(hMaskedMat, -1);
+//		view.addBitmap(toBmp(resultSobelMat_1));
+
+		// ---
+
+		Mat toCanny = hMaskedMat.clone();
 		Imgproc.blur(toCanny, toCanny, new Size(3, 3));
-		Imgproc.Canny(toCanny, toCanny, 5, 15);
+		Imgproc.Canny(toCanny, toCanny, 5, 10);
 		Core.bitwise_and(maskMat, toCanny, toCanny);
-		view.addBitmap(toBmp(toCanny));
-		releaseMat(hMaskedMat, toCanny, canalH);
+//		view.addBitmap(toBmp(toCanny));
 
+		// ---
+
+		Mat canalV = canais.get(2);
+		view.addBitmap(toBmp(canalV));
+
+		// ---
+
+		Mat vMaskedMat = new Mat();
+		Core.bitwise_and(maskMat, canalV, vMaskedMat);
+		view.addBitmap(toBmp(vMaskedMat));
+
+		// ---
+
+		Imgproc.blur(vMaskedMat, vMaskedMat, new Size(5, 5));
+		Imgproc.threshold(vMaskedMat, vMaskedMat, 120, 255,
+				Imgproc.THRESH_BINARY_INV);
+		Core.bitwise_xor(maskMat, vMaskedMat, vMaskedMat);
+		view.addBitmap(toBmp(vMaskedMat));
+
+		releaseMat(resultSobelMat3, resultSobelMat5, resultSobelMat7);
+		releaseMat(hMaskedMat, vMaskedMat, toCanny, canalH);
+		releaseMat(hsv, canais.get(1), canalV);
 		releaseMat(srcMat, grayMat);
 
 	}
@@ -111,17 +150,17 @@ public class LeavesAct extends Activity {
 		}
 	}
 
-	private Mat aplicarSobel(Mat src) {
+	private Mat aplicarSobel(Mat src, int kernelSize) {
 		Mat gradX = new Mat();
 		Mat absGradX = new Mat();
 		Mat gradY = new Mat();
 		Mat absGradY = new Mat();
 
-		Imgproc.Sobel(src, gradX, CvType.CV_16S, 1, 0, 3, 1, 0,
+		Imgproc.Sobel(src, gradX, CvType.CV_16S, 1, 0, kernelSize, 1, 0,
 				Imgproc.BORDER_DEFAULT);
 		Core.convertScaleAbs(gradX, absGradX);
 
-		Imgproc.Sobel(src, gradY, CvType.CV_16S, 0, 1, 3, 1, 0,
+		Imgproc.Sobel(src, gradY, CvType.CV_16S, 0, 1, kernelSize, 1, 0,
 				Imgproc.BORDER_DEFAULT);
 		Core.convertScaleAbs(gradY, absGradY);
 
