@@ -63,13 +63,6 @@ public class ImageGrid extends View {
 		return returnedBitmap;
 	}
 
-	public void addBitmap(Bitmap bmp) {
-		if (bmp != null) {
-			bitmaps.add(bmp);
-			this.invalidate();
-		}
-	}
-
 	public void addBitmap(Bitmap... bmps) {
 		for (Bitmap bmp : bmps) {
 			if (bmp != null) {
